@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const socketIo = require("socket.io");
@@ -8,26 +9,50 @@ const messageRoutes = require("./app/routes/messageRoute");
 const userRoutes = require("./app/routes/userRoute");
 const statsRoutes = require("./app/routes/statsRoutes");
 const chatRoute = require("./app/routes/chatRoute");
+const uploadRoutes = require("./app/routes/uploadRoute");
+const notificationRoutes = require("./app/routes/notificationRoute");
+const roomRoutes = require("./app/routes/roomRoute");
 
 const DatabaseService = require("./app/services/DatabaseService");
 const SocketService = require("./app/services/SocketService");
 
 const app = express();
+
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://192.168.8.104:3001",
+  "http://192.168.43.8:3001",
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log("❌ Origin rejetée:", origin);
+      callback(new Error("Origine non autorisée par CORS"));
+    }
   },
+  credentials: true,
+};
+
+const io = socketIo(server, {
+  cors: corsOptions,
 });
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use("/api/messages", messageRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/chat", chatRoute);
+app.use("/api", uploadRoutes);
+app.use("/api/rooms", roomRoutes);
+app.use(express.static("public"));
 
 app.get("/health", async (req, res) => {
   try {
@@ -48,7 +73,6 @@ app.get("/health", async (req, res) => {
   }
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
@@ -57,7 +81,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
 app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
@@ -65,14 +88,13 @@ app.use("*", (req, res) => {
   });
 });
 
-// Initialisation des services Socket.IO
 SocketService.initialize(io);
 
 const startServer = async () => {
   try {
     await DatabaseService.initDatabase();
 
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📱 Socket.IO server ready`);

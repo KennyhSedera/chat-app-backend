@@ -19,7 +19,7 @@ class User {
       `SELECT user_id as _id, name, avatar, is_online, email, last_seen 
        FROM users 
        WHERE is_online = true 
-       ORDER BY last_seen DESC`
+       ORDER BY last_seen DESC`,
     );
 
     return result.rows;
@@ -29,7 +29,7 @@ class User {
     const pool = DatabaseService.getPool();
 
     const result = await pool.query(
-      "SELECT COUNT(*) FROM users WHERE is_online = true"
+      "SELECT COUNT(*) FROM users WHERE is_online = true",
     );
 
     return parseInt(result.rows[0].count);
@@ -54,7 +54,7 @@ class User {
        is_online = true,
        last_seen = CURRENT_TIMESTAMP
      RETURNING *;`,
-      [_id, name, avatar, email, passwordHash]
+      [_id, name, avatar, email, passwordHash],
     );
 
     const userRow = result.rows[0];
@@ -78,7 +78,7 @@ class User {
       `UPDATE users 
        SET is_online = false, last_seen = CURRENT_TIMESTAMP 
        WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
   }
 
@@ -90,7 +90,7 @@ class User {
        SET last_seen = CURRENT_TIMESTAMP,
        is_online = true
        WHERE user_id = $1`,
-      [userId]
+      [userId],
     );
   }
 
@@ -109,7 +109,7 @@ class User {
 
     const result = await pool.query(
       `SELECT * FROM users WHERE email = $1 LIMIT 1`,
-      [email]
+      [email],
     );
 
     if (result.rowCount === 0) return null;
@@ -122,20 +122,39 @@ class User {
 
     const result = await pool.query(
       `SELECT * FROM users WHERE user_id = $1 LIMIT 1`,
-      [userId]
+      [userId],
     );
 
     if (result.rowCount === 0) return null;
 
-    return new User(result.rows[0]);
+    return new User(result.rows[0]).toSafeObject();
   }
 
   static async findAll() {
     const pool = DatabaseService.getPool();
 
-    const result = await pool.query("SELECT * FROM users");
+    const result = await pool.query(
+      `SELECT user_id, name, email, avatar, is_online, last_seen, created_at 
+       FROM users`,
+    );
 
-    return result.rows.map((user) => new User(user));
+    return result.rows.map((user) => new User(user).toSafeObject());
+  }
+
+  static async updateAvatar(userId, avatar) {
+    const pool = DatabaseService.getPool();
+
+    const result = await pool.query(
+      `UPDATE users SET avatar = $1 WHERE user_id = $2 RETURNING *`,
+      [avatar, userId],
+    );
+
+    return result.rows[0];
+  }
+
+  toSafeObject() {
+    const { password_hash, ...safe } = this;
+    return safe;
   }
 }
 

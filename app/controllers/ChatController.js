@@ -54,6 +54,26 @@ class ChatController {
       });
     }
   }
+
+  static async getUnreadCount(req, res) {
+    try {
+      const { userId } = req.params;
+
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing userId parameter.",
+        });
+      }
+
+      const count = await Chat.getUnreadChatsCount(userId);
+
+      res.json({ success: true, count });
+    } catch (error) {
+      console.error("Error fetching unread chats count:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  }
 }
 
 module.exports = ChatController;
